@@ -1,6 +1,6 @@
 {
   "name": "jobqu",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Queue to run jobs with unique keys at fixed intervals",
   "main": "index.js",
   "scripts": {
