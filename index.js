@@ -5,19 +5,25 @@ class JobQueue {
      * @param interval (ms) interval to run in
      * @param runner function(key):Promise to execute the job
      * @param maxPerRun maximum queue entries to run per interval (-1 for unlimited)
+     * @param asArray pass all keys to the runner at once instead of one-by-one. Runner should return an object mapping key->result
      */
-    constructor(runner, interval = 1000, maxPerRun = -1) {
+    constructor(runner, interval = 1000, maxPerRun = -1, asArray = false) {
         this.queue = {};
         this.runner = runner;
         this.interval = interval;
         this.maxPerRun = maxPerRun;
+        this.asArray = asArray;
 
         this.jobId = setInterval(() => {
             let keys = Object.keys(this.queue);
             let n = this.maxPerRun === -1 ? this.queue.length : this.maxPerRun;
             let toRunKeys = keys.slice(0, n);
-            for (let key of toRunKeys) {
-                this.__doRunFor(key);
+            if (this.asArray) {
+                this.__doRunFor(toRunKeys);
+            } else {
+                for (let key of toRunKeys) {
+                    this.__doRunFor(key);
+                }
             }
         }, this.interval)
     }
@@ -25,11 +31,26 @@ class JobQueue {
     __doRunFor(key) {
         this.runner(key)
             .then(res => {
-                this.__resolve(key, res, false);
+                if (this.asArray) {
+                    this.__multiResolve(key, res, false);
+                } else {
+                    this.__resolve(key, res, false);
+                }
             })
             .catch(err => {
-                this.__resolve(key, err, true);
+                if (this.asArray) {
+                    this.__multiResolve(key, err, true);
+                } else {
+                    this.__resolve(key, err, true);
+                }
             })
+    }
+
+    __multiResolve(keys, results, rejected) {
+        for (let k of keys) {
+            let res = Array.isArray(results) ? results[k] : results;
+            this.__resolve(k, res, rejected);
+        }
     }
 
     __resolve(key, result, rejected) {
