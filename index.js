@@ -50,7 +50,7 @@ class JobQueue {
 
     __multiResolve(keys, results, rejected) {
         for (let k of keys) {
-            let res = Array.isArray(results) ? results[k] : results;
+            let res = typeof results === "object" ? results[k] : results;
             this.__resolve(k, res, rejected);
         }
     }
