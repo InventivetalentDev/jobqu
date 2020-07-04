@@ -4,9 +4,9 @@ class JobQueue {
      * Create a new queue
      * @param interval (ms) interval to run in
      * @param runner function(key):Promise to execute the job
-     * @param maxPerRun maximum queue entries to run per interval
+     * @param maxPerRun maximum queue entries to run per interval (-1 for unlimited)
      */
-    constructor(runner, interval, maxPerRun) {
+    constructor(runner, interval = 1000, maxPerRun = -1) {
         this.queue = {};
         this.runner = runner;
         this.interval = interval;
