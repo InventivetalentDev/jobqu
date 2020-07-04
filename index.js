@@ -18,11 +18,13 @@ class JobQueue {
             let keys = Object.keys(this.queue);
             let n = this.maxPerRun === -1 ? this.queue.length : this.maxPerRun;
             let toRunKeys = keys.slice(0, n);
-            if (this.multi) {
-                this.__doRunFor(toRunKeys);
-            } else {
-                for (let key of toRunKeys) {
-                    this.__doRunFor(key);
+            if (toRunKeys.length > 0) {
+                if (this.multi) {
+                    this.__doRunFor(toRunKeys);
+                } else {
+                    for (let key of toRunKeys) {
+                        this.__doRunFor(key);
+                    }
                 }
             }
         }, this.interval)
