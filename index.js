@@ -5,20 +5,20 @@ class JobQueue {
      * @param interval (ms) interval to run in
      * @param runner function(key):Promise to execute the job
      * @param maxPerRun maximum queue entries to run per interval (-1 for unlimited)
-     * @param asArray pass all keys to the runner at once instead of one-by-one. Runner should return an object mapping key->result
+     * @param multi pass all keys to the runner at once instead of one-by-one. Runner should return an object mapping key->result
      */
-    constructor(runner, interval = 1000, maxPerRun = -1, asArray = false) {
+    constructor(runner, interval = 1000, maxPerRun = -1, multi = false) {
         this.queue = {};
         this.runner = runner;
         this.interval = interval;
         this.maxPerRun = maxPerRun;
-        this.asArray = asArray;
+        this.multi = multi;
 
         this.jobId = setInterval(() => {
             let keys = Object.keys(this.queue);
             let n = this.maxPerRun === -1 ? this.queue.length : this.maxPerRun;
             let toRunKeys = keys.slice(0, n);
-            if (this.asArray) {
+            if (this.multi) {
                 this.__doRunFor(toRunKeys);
             } else {
                 for (let key of toRunKeys) {
@@ -31,14 +31,14 @@ class JobQueue {
     __doRunFor(key) {
         this.runner(key)
             .then(res => {
-                if (this.asArray) {
+                if (this.multi) {
                     this.__multiResolve(key, res, false);
                 } else {
                     this.__resolve(key, res, false);
                 }
             })
             .catch(err => {
-                if (this.asArray) {
+                if (this.multi) {
                     this.__multiResolve(key, err, true);
                 } else {
                     this.__resolve(key, err, true);
