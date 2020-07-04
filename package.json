@@ -1,0 +1,15 @@
+{
+  "name": "jobqu",
+  "version": "1.0.0",
+  "description": "Queue to run jobs with unique keys at fixed intervals",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "queue",
+    "job"
+  ],
+  "author": "Haylee Schäfer",
+  "license": "MIT"
+}
