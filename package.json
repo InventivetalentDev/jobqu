@@ -2,8 +2,8 @@
   "name": "jobqu",
   "version": "2.0.0",
   "description": "Queue to run jobs with unique keys at fixed intervals",
-  "main": "dist/index.js",
-  "typings": "dist/index",
+  "main": "dist/src/index.js",
+  "typings": "dist/src/index",
   "scripts": {
     "clean": "rm -rf dist",
     "compile": "tsc",

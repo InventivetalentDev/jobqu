@@ -19,12 +19,7 @@
     "types": [
       "node"
     ],
-    "baseUrl": ".",
-    "paths": {
-      "*": [
-        "src/types/*"
-      ]
-    }
+    "baseUrl": "."
   },
   "exclude": [
     "node_modules",
