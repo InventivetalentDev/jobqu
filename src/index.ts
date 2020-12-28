@@ -1,2 +1,3 @@
-export { JobQueue } from "./Single";
-export { MultiJobQueue } from "./Multi";
+export * from "./Base";
+export * from "./Single";
+export * from "./Multi";
