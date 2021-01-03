@@ -52,4 +52,16 @@ export abstract class RunnerBase<K, V> {
         return this.queue.delete(key);
     }
 
+    get size(): number {
+        return this.queue.size;
+    }
+
+    keys(): IterableIterator<K> {
+        return this.queue.keys();
+    }
+
+    clear(): void {
+        return this.queue.clear();
+    }
+
 }
