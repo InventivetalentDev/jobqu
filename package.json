@@ -1,6 +1,6 @@
 {
   "name": "jobqu",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Queue to run jobs with unique keys at fixed intervals",
   "main": "dist/src/index.js",
   "typings": "dist/src/index",
