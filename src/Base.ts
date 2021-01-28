@@ -11,7 +11,7 @@ export abstract class RunnerBase<K, V> {
     protected constructor(protected readonly interval: number = 1000, protected readonly maxPerRun: number = -1) {
     }
 
-    protected getAndDelete(key: K): PromiseEntry<V>[] {
+    protected getAndDelete(key: K): PromiseEntry<V>[] | undefined {
         const entries = this.queue.get(key);
         this.queue.delete(key);
         return entries;

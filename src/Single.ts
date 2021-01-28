@@ -26,10 +26,10 @@ export class JobQueue<K, V> extends RunnerBase<K, V> {
             for (let key of toRunKeys) {
                 this.runner(key)
                     .then(value => {
-                        this.getAndDelete(key).forEach(entry => entry.resolve(value));
+                        this.getAndDelete(key)?.forEach(entry => entry.resolve(value));
                     })
                     .catch(err => {
-                        this.getAndDelete(key).forEach(entry => entry.reject(err));
+                        this.getAndDelete(key)?.forEach(entry => entry.reject(err));
                     })
             }
         }
