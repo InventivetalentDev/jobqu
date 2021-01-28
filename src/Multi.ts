@@ -27,12 +27,18 @@ export class MultiJobQueue<K, V> extends RunnerBase<K, V> {
                 .then(map => {
                     toRunKeys.forEach(key => {
                         const value = map.get(key);
-                        this.getAndDelete(key)?.forEach(entry => entry.resolve(value));
+                        const entries = this.getAndDelete(key);
+                        if (entries) {
+                            entries.forEach(entry => entry.resolve(value));
+                        }
                     })
                 })
                 .catch(err => {
                     toRunKeys.forEach(key => {
-                        this.getAndDelete(key)?.forEach(entry => entry.reject(err));
+                        const entries = this.getAndDelete(key);
+                        if (entries) {
+                            entries.forEach(entry => entry.reject(err));
+                        }
                     })
                 })
         }
