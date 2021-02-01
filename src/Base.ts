@@ -6,6 +6,7 @@ export interface PromiseEntry<V> {
 export abstract class RunnerBase<K, V> {
 
     protected readonly queue: Map<K, PromiseEntry<V>[]> = new Map<K, PromiseEntry<V>[]>();
+    protected readonly running: Set<K> = new Set<K>();
     protected task: NodeJS.Timeout;
 
     protected constructor(protected readonly interval: number = 1000, protected readonly maxPerRun: number = -1) {
@@ -14,6 +15,7 @@ export abstract class RunnerBase<K, V> {
     protected getAndDelete(key: K): PromiseEntry<V>[] | undefined {
         const entries = this.queue.get(key);
         this.queue.delete(key);
+        this.running.delete(key);
         return entries;
     }
 
@@ -49,6 +51,7 @@ export abstract class RunnerBase<K, V> {
      * @param key unique job key
      */
     remove(key: K): boolean {
+        this.running.delete(key);
         return this.queue.delete(key);
     }
 

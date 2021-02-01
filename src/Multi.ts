@@ -21,8 +21,9 @@ export class MultiJobQueue<K, V> extends RunnerBase<K, V> {
     protected run() {
         const keys = Array.from(this.queue.keys());
         const n = this.maxPerRun === -1 ? this.queue.size : this.maxPerRun;
-        const toRunKeys = Array.from(keys.slice(0, n));
+        const toRunKeys = Array.from(keys.slice(0, n)).filter(k => !this.running.has(k));
         if (toRunKeys.length > 0) {
+            toRunKeys.forEach(k => this.running.add(k));
             this.runner(toRunKeys)
                 .then(map => {
                     toRunKeys.forEach(key => {
