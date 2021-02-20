@@ -27,6 +27,7 @@ export abstract class RunnerBase<K, V> {
     end(): void {
         clearTimeout(this.task);
         this.queue.clear();
+        this.running.clear();
     }
 
     /**
