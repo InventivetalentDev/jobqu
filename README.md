@@ -1,4 +1,6 @@
 ## jobqu
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FInventivetalentDev%2Fjobqu.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FInventivetalentDev%2Fjobqu?ref=badge_shield)
+
 Queue to run jobs with unique keys at fixed intervals
 
 ```
@@ -97,3 +99,7 @@ notmykey 1: notmykey18288
 notmykey 2: notmykey18288
  */
 ```
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FInventivetalentDev%2Fjobqu.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FInventivetalentDev%2Fjobqu?ref=badge_large)
