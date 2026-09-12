@@ -8,40 +8,44 @@ export class JobQueue<K, V> extends RunnerBase<K, V> {
 
     /**
      * Create a new queue
-     * @param interval (ms) interval to run in
      * @param runner function(key):Promise to execute the job
+     * @param interval (ms) interval to run in
      * @param maxPerRun maximum queue entries to run per interval (-1 for unlimited)
      */
-    constructor(private readonly runner: Runner<K, V>, protected readonly interval: number = 1000, protected readonly maxPerRun: number = -1) {
+    constructor(private readonly runner: Runner<K, V>, interval: number = 1000, maxPerRun: number = -1) {
         super(interval, maxPerRun);
 
         this.run();
     }
 
-    protected run() {
-        const keys = Array.from(this.queue.keys());
-        const n = this.maxPerRun === -1 ? this.queue.size : this.maxPerRun;
-        const toRunKeys = Array.from(keys.slice(0, n)).filter(k => !this.running.has(k));
-        if (toRunKeys.length > 0) {
-            for (let key of toRunKeys) {
-                this.running.add(key);
-                this.runner(key)
+    protected run(): void {
+        try {
+            this.takeBatch().forEach((entries, key) => {
+                this.invokeRunner(key)
                     .then(value => {
-                        const entries = this.getAndDelete(key);
-                        if (entries) {
-                            entries.forEach(entry => entry.resolve(value));
-                        }
+                        this.finish(key);
+                        entries.forEach(entry => entry.resolve(value));
+                    }, err => {
+                        this.finish(key);
+                        entries.forEach(entry => entry.reject(err));
                     })
-                    .catch(err => {
-                        const entries = this.getAndDelete(key);
-                        if (entries) {
-                            entries.forEach(entry => entry.reject(err));
-                        }
-                    })
-            }
+            });
+        } finally {
+            // always reschedule, so a misbehaving runner can't kill the queue
+            this.scheduleNext();
         }
+    }
 
-        this.task = setTimeout(() => this.run(), this.interval);
+    /**
+     * Call the runner, turning a synchronous throw or a non-promise return value
+     * into a rejected/resolved promise.
+     */
+    private invokeRunner(key: K): Promise<V> {
+        try {
+            return Promise.resolve(this.runner(key));
+        } catch (e) {
+            return Promise.reject(e);
+        }
     }
 
 }
