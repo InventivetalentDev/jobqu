@@ -7,7 +7,7 @@ export abstract class RunnerBase<K, V> {
 
     protected readonly queue: Map<K, PromiseEntry<V>[]> = new Map<K, PromiseEntry<V>[]>();
     protected readonly running: Set<K> = new Set<K>();
-    protected task: NodeJS.Timeout;
+    protected task: ReturnType<typeof setTimeout>;
 
     protected constructor(protected readonly interval: number = 1000, protected readonly maxPerRun: number = -1) {
     }
