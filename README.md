@@ -114,9 +114,10 @@ new MultiJobQueue<K, V>(runner, interval?, maxPerRun?)
 | `interval` | `1000` | milliseconds between runs |
 | `maxPerRun` | `-1` | maximum keys handed to the runner per interval (`-1` for unlimited) |
 
-A key that is still running is skipped, so the same key never runs twice at once — and a slow
-key never holds up the rest of the queue, even with `maxPerRun` set. Jobs added while their key
-is running are collected for the next run rather than resolved with the older value.
+Runs are always at least `interval` apart, and everything added in the meantime is collected into
+the next one. A key that is still running is skipped, so the same key never runs twice at once —
+and a slow key never holds up the rest of the queue, even with `maxPerRun` set. Jobs added while
+their key is running are collected for the next run rather than resolved with the older value.
 
 ## Methods
 
@@ -126,7 +127,7 @@ is running are collected for the next run rather than resolved with the older va
 | `remove(key)` | drop a queued job, rejecting its promise; returns whether one was queued |
 | `clear()` | drop every queued job, rejecting their promises |
 | `end()` | stop the queue task and drop every queued job |
-| `unref()` / `ref()` | whether the queue's timer keeps the node process alive (`ref` by default) |
+| `unref()` / `ref()` | whether *queued* jobs keep the node process alive (`ref` by default) |
 | `size` | number of keys waiting to run |
 | `activeSize` | number of keys currently handed to the runner |
 | `keys()` | keys waiting to run |
@@ -152,14 +153,17 @@ queue.add("mykey").catch(err => {
   say "no value", map the key to an explicit value such as `null` instead of leaving it out.
 
 ## Stopping
-`end()` stops the interval and rejects everything still queued, so awaiting callers are never left
-hanging. The queue cannot be restarted — `add()` rejects once it has ended.
+The queue only holds a timer while it has jobs to run. Once it drains it stops ticking entirely, so
+an idle queue never keeps the node process alive — and it wakes back up on the next `add()`.
 
-By default the interval keeps the node process alive. Call `unref()` if the queue should not, on
-its own, stop the process from exiting:
+While jobs *are* waiting the timer does keep the process alive, so pending work is not dropped on
+the way out. Call `unref()` if not even that should hold the process open:
 ```typescript
 const queue = new JobQueue<string, string>(runner).unref();
 ```
+
+`end()` stops the queue for good and rejects everything still queued, so awaiting callers are never
+left hanging. It cannot be restarted — `add()` rejects once it has ended.
 
 
 ## License

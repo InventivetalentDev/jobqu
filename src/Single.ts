@@ -14,26 +14,19 @@ export class JobQueue<K, V> extends RunnerBase<K, V> {
      */
     constructor(private readonly runner: Runner<K, V>, interval: number = 1000, maxPerRun: number = -1) {
         super(interval, maxPerRun);
-
-        this.run();
     }
 
     protected run(): void {
-        try {
-            this.takeBatch().forEach((entries, key) => {
-                this.invokeRunner(key)
-                    .then(value => {
-                        this.finish(key);
-                        entries.forEach(entry => entry.resolve(value));
-                    }, err => {
-                        this.finish(key);
-                        entries.forEach(entry => entry.reject(err));
-                    })
-            });
-        } finally {
-            // always reschedule, so a misbehaving runner can't kill the queue
-            this.scheduleNext();
-        }
+        this.takeBatch().forEach((entries, key) => {
+            this.invokeRunner(key)
+                .then(value => {
+                    this.finish(key);
+                    entries.forEach(entry => entry.resolve(value));
+                }, err => {
+                    this.finish(key);
+                    entries.forEach(entry => entry.reject(err));
+                })
+        });
     }
 
     /**

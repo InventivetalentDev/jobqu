@@ -5,26 +5,49 @@ import * as path from "node:path";
 
 const entry = path.resolve(__dirname, "../src/index.js");
 
-const runScript = (body: string) => spawnSync(process.execPath, [
-    "-e", `const { JobQueue } = require(${ JSON.stringify(entry) });\n${ body }`
-], { timeout: 5_000, encoding: "utf8" });
+const runScript = (body: string) => {
+    const result = spawnSync(process.execPath, [
+        "-e", `const { JobQueue } = require(${ JSON.stringify(entry) });\n${ body }`
+    ], { timeout: 5_000, encoding: "utf8" });
+    assert.equal(result.signal, null,
+        `process had to be killed - it never exited on its own. stdout: ${ result.stdout }`);
+    assert.equal(result.status, 0, `process exited ${ result.status }: ${ result.stderr }`);
+    return result.stdout.trim();
+};
 
-test("a running queue keeps the process alive", () => {
-    const result = runScript(`new JobQueue(key => Promise.resolve(key), 50);`);
-
-    assert.equal(result.signal, "SIGTERM", `expected the process to be killed by the timeout, got ${ result.status }`);
+test("an idle queue does not keep the process alive", () => {
+    runScript(`new JobQueue(key => Promise.resolve(key), 50);`);
 });
 
-test("unref() lets the process exit while the queue is idle", () => {
-    const result = runScript(`new JobQueue(key => Promise.resolve(key), 50).unref();`);
+test("a queued job keeps the process alive until it has run", () => {
+    const out = runScript(`
+        const queue = new JobQueue(key => Promise.resolve("ran:" + key), 300);
+        queue.add("k").then(value => console.log(value));
+    `);
 
-    assert.equal(result.status, 0, `process did not exit on its own: ${ result.stderr }`);
-    assert.equal(result.signal, null);
+    assert.equal(out, "ran:k", "the process exited before running the queued job");
+});
+
+test("the queue wakes back up for jobs added after it drained", () => {
+    // the timer stops once "a" is done, so adding "b" has to arm it again
+    const out = runScript(`
+        const queue = new JobQueue(key => Promise.resolve("ran:" + key), 100);
+        queue.add("a").then(value => console.log(value));
+        setTimeout(() => queue.add("b").then(value => console.log(value)), 400);
+    `);
+
+    assert.deepEqual(out.split("\n"), ["ran:a", "ran:b"]);
+});
+
+test("unref() lets the process exit even with a job queued", () => {
+    const out = runScript(`
+        const queue = new JobQueue(key => Promise.resolve("ran:" + key), 300).unref();
+        queue.add("k").then(value => console.log(value));
+    `);
+
+    assert.equal(out, "", "unref()'d queue should not have held the process open for the job");
 });
 
 test("end() lets the process exit", () => {
-    const result = runScript(`const q = new JobQueue(key => Promise.resolve(key), 50); q.end();`);
-
-    assert.equal(result.status, 0, `process did not exit on its own: ${ result.stderr }`);
-    assert.equal(result.signal, null);
+    runScript(`const queue = new JobQueue(key => Promise.resolve(key), 50); queue.end();`);
 });

@@ -29,38 +29,31 @@ export class MultiJobQueue<K, V> extends RunnerBase<K, V> {
      */
     constructor(private readonly runner: MultiRunner<K, V>, interval: number = 1000, maxPerRun: number = -1) {
         super(interval, maxPerRun);
-
-        this.run();
     }
 
     protected run(): void {
-        try {
-            const batch = this.takeBatch();
-            if (batch.size < 1) {
-                return;
-            }
-            this.invokeRunner(Array.from(batch.keys()))
-                .then(map => {
-                    batch.forEach((entries, key) => {
-                        this.finish(key);
-                        if (map instanceof Map && map.has(key)) {
-                            const value = map.get(key) as V;
-                            entries.forEach(entry => entry.resolve(value));
-                        } else {
-                            const err = new MissingResultError(key);
-                            entries.forEach(entry => entry.reject(err));
-                        }
-                    })
-                }, err => {
-                    batch.forEach((entries, key) => {
-                        this.finish(key);
-                        entries.forEach(entry => entry.reject(err));
-                    })
-                })
-        } finally {
-            // always reschedule, so a misbehaving runner can't kill the queue
-            this.scheduleNext();
+        const batch = this.takeBatch();
+        if (batch.size < 1) {
+            return;
         }
+        this.invokeRunner(Array.from(batch.keys()))
+            .then(map => {
+                batch.forEach((entries, key) => {
+                    this.finish(key);
+                    if (map instanceof Map && map.has(key)) {
+                        const value = map.get(key) as V;
+                        entries.forEach(entry => entry.resolve(value));
+                    } else {
+                        const err = new MissingResultError(key);
+                        entries.forEach(entry => entry.reject(err));
+                    }
+                })
+            }, err => {
+                batch.forEach((entries, key) => {
+                    this.finish(key);
+                    entries.forEach(entry => entry.reject(err));
+                })
+            })
     }
 
     /**

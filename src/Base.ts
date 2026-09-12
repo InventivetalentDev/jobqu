@@ -32,6 +32,7 @@ export abstract class RunnerBase<K, V> {
     protected task?: ReturnType<typeof setTimeout>;
     protected ended: boolean = false;
     private unreffed: boolean = false;
+    private lastRunAt: number = Date.now();
 
     protected constructor(protected readonly interval: number = 1000, protected readonly maxPerRun: number = -1) {
     }
@@ -73,16 +74,47 @@ export abstract class RunnerBase<K, V> {
      */
     protected finish(key: K): void {
         this.running.delete(key);
+        this.ensureScheduled();
     }
 
     /**
-     * Schedule the next tick, unless the queue has ended.
+     * Run one tick, then re-arm the timer if there is anything left to do.
      */
-    protected scheduleNext(): void {
-        if (this.ended) {
+    private tick(): void {
+        this.task = undefined;
+        this.lastRunAt = Date.now();
+        try {
+            this.run();
+        } finally {
+            // always re-arm, so a misbehaving runner can't kill the queue
+            this.ensureScheduled();
+        }
+    }
+
+    /**
+     * Whether any queued key is ready to be handed to the runner.
+     */
+    private hasDispatchableWork(): boolean {
+        for (const key of this.queue.keys()) {
+            if (!this.running.has(key)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Arm the timer, unless it is armed already or there is nothing to dispatch.
+     *
+     * An idle queue holds no timer at all, so it never keeps the process alive on its own.
+     */
+    protected ensureScheduled(): void {
+        if (this.ended || this.task !== undefined || !this.hasDispatchableWork()) {
             return;
         }
-        this.task = setTimeout(() => this.run(), this.interval);
+        // hold the run cadence: wait out whatever is left of the interval since the last run
+        const delay = Math.max(0, this.interval - (Date.now() - this.lastRunAt));
+        this.task = setTimeout(() => this.tick(), delay);
         if (this.unreffed) {
             this.unrefTask();
         }
@@ -132,7 +164,7 @@ export abstract class RunnerBase<K, V> {
         if (this.ended) {
             return Promise.reject(new JobCancelledError("ended"));
         }
-        return new Promise<V>((resolve, reject) => {
+        const promise = new Promise<V>((resolve, reject) => {
             const entry: PromiseEntry<V> = { resolve, reject };
             const arr = this.queue.get(key);
             if (arr) {
@@ -140,7 +172,9 @@ export abstract class RunnerBase<K, V> {
             } else {
                 this.queue.set(key, [entry]);
             }
-        })
+        });
+        this.ensureScheduled();
+        return promise;
     }
 
 
@@ -173,7 +207,10 @@ export abstract class RunnerBase<K, V> {
     }
 
     /**
-     * Allow the process to exit while this queue is idle.
+     * Allow the process to exit even while jobs are still queued.
+     *
+     * An idle queue holds no timer anyway, so this is only needed to stop *pending*
+     * jobs from keeping the process alive.
      * @see https://nodejs.org/api/timers.html#timeoutunref
      */
     unref(): this {
