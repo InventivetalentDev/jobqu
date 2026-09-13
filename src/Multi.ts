@@ -4,47 +4,68 @@ export interface MultiRunner<K, V> {
     (keys: K[]): Promise<Map<K, V>>;
 }
 
+/**
+ * Rejection handed to jobs whose key is missing from the map returned by the runner.
+ *
+ * To signal "no value" for a key, resolve the map with an explicit value
+ * (e.g. `null`) instead of omitting the key.
+ */
+export class MissingResultError extends Error {
+
+    constructor(readonly key: unknown) {
+        super(`Runner returned no result for key ${ String(key) }`);
+        this.name = "MissingResultError";
+    }
+
+}
+
 export class MultiJobQueue<K, V> extends RunnerBase<K, V> {
 
     /**
      * Create a new queue
+     * @param runner function(keys):Promise<Map> to execute the jobs
      * @param interval (ms) interval to run in
-     * @param runner function(key):Promise<Map> to execute the job
      * @param maxPerRun maximum queue entries to run per interval (-1 for unlimited)
      */
-    constructor(private readonly runner: MultiRunner<K, V>, protected readonly interval: number = 1000, protected readonly maxPerRun: number = -1) {
+    constructor(private readonly runner: MultiRunner<K, V>, interval: number = 1000, maxPerRun: number = -1) {
         super(interval, maxPerRun);
-
-        this.run();
     }
 
-    protected run() {
-        const keys = Array.from(this.queue.keys());
-        const n = this.maxPerRun === -1 ? this.queue.size : this.maxPerRun;
-        const toRunKeys = Array.from(keys.slice(0, n)).filter(k => !this.running.has(k));
-        if (toRunKeys.length > 0) {
-            toRunKeys.forEach(k => this.running.add(k));
-            this.runner(toRunKeys)
-                .then(map => {
-                    toRunKeys.forEach(key => {
-                        const value = map.get(key);
-                        const entries = this.getAndDelete(key);
-                        if (entries) {
-                            entries.forEach(entry => entry.resolve(value));
-                        }
-                    })
-                })
-                .catch(err => {
-                    toRunKeys.forEach(key => {
-                        const entries = this.getAndDelete(key);
-                        if (entries) {
-                            entries.forEach(entry => entry.reject(err));
-                        }
-                    })
-                })
+    protected run(): void {
+        const batch = this.takeBatch();
+        if (batch.size < 1) {
+            return;
         }
+        this.invokeRunner(Array.from(batch.keys()))
+            .then(map => {
+                batch.forEach((entries, key) => {
+                    this.finish(key);
+                    if (map instanceof Map && map.has(key)) {
+                        const value = map.get(key) as V;
+                        entries.forEach(entry => entry.resolve(value));
+                    } else {
+                        const err = new MissingResultError(key);
+                        entries.forEach(entry => entry.reject(err));
+                    }
+                })
+            }, err => {
+                batch.forEach((entries, key) => {
+                    this.finish(key);
+                    entries.forEach(entry => entry.reject(err));
+                })
+            })
+    }
 
-        this.task = setTimeout(() => this.run(), this.interval);
+    /**
+     * Call the runner, turning a synchronous throw or a non-promise return value
+     * into a rejected/resolved promise.
+     */
+    private invokeRunner(keys: K[]): Promise<Map<K, V>> {
+        try {
+            return Promise.resolve(this.runner(keys));
+        } catch (e) {
+            return Promise.reject(e);
+        }
     }
 
 }
