@@ -13,7 +13,7 @@
     "compile": "tsc",
     "typecheck": "tsc --noEmit",
     "build": "npm run clean && npm run compile",
-    "test": "npm run build && node --test \"dist/test/*.test.js\"",
+    "test": "npm run build && node scripts/test.js",
     "prepublishOnly": "npm run build"
   },
   "repository": {
