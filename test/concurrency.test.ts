@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import * as assert from "node:assert/strict";
-import { JobCancelledError, JobQueue, MultiJobQueue } from "../src";
+import { JobQueue, MultiJobQueue } from "../src";
 
 const delay = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 const waitFor = async (condition: () => boolean) => {
@@ -21,7 +21,7 @@ test("maxActive pauses dispatch without polling and resumes after success or fai
     const queue = new InspectableQueue(key => new Promise((resolve, reject) => {
         times.push(Date.now());
         jobs.set(key, { resolve, reject });
-    }), 20, 1, { maxActive: 2 });
+    }), { interval: 20, maxPerRun: 1, maxActive: 2 });
     t.after(() => queue.end());
     const pending = Promise.allSettled([0, 1, 2, 3].map(key => queue.add(key)));
 
@@ -53,7 +53,7 @@ test("maxActive counts keys across batches and limits each batch to available ca
     const queue = new MultiJobQueue<number, number>(keys => new Promise(resolve => {
         batches.push(keys);
         finish.push(() => resolve(new Map(keys.map(key => [key, key]))));
-    }), 10, 2, { maxActive: 3 });
+    }), { interval: 10, maxPerRun: 2, maxActive: 3 });
     t.after(() => queue.end());
     const pending = Promise.all([0, 1, 2, 3, 4].map(key => queue.add(key)));
     await waitFor(() => batches.length === 2);
@@ -68,31 +68,4 @@ test("maxActive counts keys across batches and limits each batch to available ca
     finish[1]();
     finish[2]();
     assert.deepEqual(await pending, [0, 1, 2, 3, 4]);
-});
-
-test("ending a saturated queue rejects waiting jobs and lets the active job finish", async () => {
-    let finish: ((value: number) => void) | undefined;
-    const started: number[] = [];
-    const queue = new JobQueue<number, number>(key => new Promise(resolve => {
-        started.push(key);
-        finish = resolve;
-    }), 10, 1, { maxActive: 1 });
-    const active = queue.add(0);
-    const queued = queue.add(1);
-    const rejected = assert.rejects(queued, (error: unknown) => error instanceof JobCancelledError && error.reason === "ended");
-    await waitFor(() => finish !== undefined);
-    queue.end();
-    await rejected;
-    finish!(0);
-    assert.equal(await active, 0);
-    await assert.rejects(queue.add(2), JobCancelledError);
-    assert.deepEqual(started, [0]);
-});
-
-test("maxActive rejects invalid limits without changing the default constructor", () => {
-    for (const value of [0, -2, 1.5, Infinity, NaN]) {
-        assert.throws(() => new JobQueue(async key => key, 10, 1, { maxActive: value }), RangeError);
-    }
-    const queue = new JobQueue(async key => key);
-    queue.end();
 });

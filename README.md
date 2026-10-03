@@ -102,18 +102,21 @@ notmykey 2: notmykey18288
 
 
 ## Options
-Both queues take the same constructor arguments:
+Both queues accept the same options object:
+
 ```typescript
-new JobQueue<K, V>(runner, interval?, maxPerRun?, options?)
-new MultiJobQueue<K, V>(runner, interval?, maxPerRun?, options?)
+new JobQueue(runner, { interval: 1000, maxPerRun: 10, maxActive: 20 });
 ```
 
-| Argument | Default | Description |
+| Option | Default | Description |
 | --- | --- | --- |
-| `runner` | *(required)* | `JobQueue`: `(key: K) => Promise<V>`<br>`MultiJobQueue`: `(keys: K[]) => Promise<Map<K, V>>` |
 | `interval` | `1000` | milliseconds between runs |
-| `maxPerRun` | `-1` | maximum keys handed to the runner per interval (`-1` for unlimited) |
-| `options.maxActive` | `-1` | maximum keys running at once, including all active batches; a positive integer or `-1` for unlimited |
+| `maxPerRun` | `-1` | maximum keys handed to the runner per interval |
+| `maxActive` | `-1` | maximum keys running at once, including all active batches |
+
+Negative `maxPerRun` or `maxActive` values mean unlimited. The runner takes one key for
+`JobQueue` or an array of keys for `MultiJobQueue`. Numeric calls remain supported as
+`new JobQueue(runner, interval, maxPerRun)` and `new MultiJobQueue(runner, interval, maxPerRun)`.
 
 Runs are always at least `interval` apart, and everything added in the meantime is collected into
 the next one. A key that is still running is skipped, so the same key never runs twice at once —

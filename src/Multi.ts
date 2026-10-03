@@ -24,12 +24,11 @@ export class MultiJobQueue<K, V> extends RunnerBase<K, V> {
     /**
      * Create a new queue
      * @param runner function(keys):Promise<Map> to execute the jobs
-     * @param interval (ms) interval to run in
-     * @param maxPerRun maximum queue entries to run per interval (-1 for unlimited)
-     * @param options optional active-key limit across all batches
+     * @param options queue options, or the interval in milliseconds for numeric constructor calls
+     * @param legacyMaxPerRun maximum keys per interval when options is a number (negative for unlimited)
      */
-    constructor(private readonly runner: MultiRunner<K, V>, interval: number = 1000, maxPerRun: number = -1, options: QueueOptions = {}) {
-        super(interval, maxPerRun, options);
+    constructor(private readonly runner: MultiRunner<K, V>, options: number | QueueOptions = 1000, legacyMaxPerRun: number = -1) {
+        super(options, legacyMaxPerRun);
     }
 
     protected run(): void {

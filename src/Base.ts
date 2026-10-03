@@ -4,7 +4,11 @@ export interface PromiseEntry<V> {
 }
 
 export interface QueueOptions {
-    /** Maximum keys running at once; -1 leaves the queue unlimited. */
+    /** Milliseconds between runs. */
+    interval?: number;
+    /** Maximum keys per run; negative values leave the queue unlimited. */
+    maxPerRun?: number;
+    /** Maximum keys running at once; negative values leave the queue unlimited. */
     maxActive?: number;
 }
 
@@ -38,14 +42,15 @@ export abstract class RunnerBase<K, V> {
     protected ended: boolean = false;
     private unreffed: boolean = false;
     private lastRunAt: number = Date.now();
+    protected readonly interval: number;
+    protected readonly maxPerRun: number;
     protected readonly maxActive: number;
 
-    protected constructor(protected readonly interval: number = 1000, protected readonly maxPerRun: number = -1,
-                          options: QueueOptions = {}) {
-        this.maxActive = options.maxActive ?? -1;
-        if (this.maxActive !== -1 && (!Number.isInteger(this.maxActive) || this.maxActive < 1)) {
-            throw new RangeError("maxActive must be a positive integer or -1");
-        }
+    protected constructor(options: number | QueueOptions = 1000, legacyMaxPerRun: number = -1) {
+        const config = typeof options === "number" ? { interval: options, maxPerRun: legacyMaxPerRun } : options;
+        this.interval = config.interval ?? 1000;
+        this.maxPerRun = config.maxPerRun ?? -1;
+        this.maxActive = config.maxActive ?? -1;
     }
 
     protected abstract run(): void;
