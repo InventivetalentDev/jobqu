@@ -3,6 +3,15 @@ export interface PromiseEntry<V> {
     reject: (error?: any) => void;
 }
 
+export interface QueueOptions {
+    /** Milliseconds between runs. */
+    interval?: number;
+    /** Maximum keys per run; negative values leave the queue unlimited. */
+    maxPerRun?: number;
+    /** Maximum keys running at once; negative values leave the queue unlimited. */
+    maxActive?: number;
+}
+
 /**
  * Why a queued job was cancelled before it ever reached the runner.
  */
@@ -33,8 +42,15 @@ export abstract class RunnerBase<K, V> {
     protected ended: boolean = false;
     private unreffed: boolean = false;
     private lastRunAt: number = Date.now();
+    protected readonly interval: number;
+    protected readonly maxPerRun: number;
+    protected readonly maxActive: number;
 
-    protected constructor(protected readonly interval: number = 1000, protected readonly maxPerRun: number = -1) {
+    protected constructor(options: number | QueueOptions = 1000, legacyMaxPerRun: number = -1) {
+        const config = typeof options === "number" ? { interval: options, maxPerRun: legacyMaxPerRun } : options;
+        this.interval = config.interval ?? 1000;
+        this.maxPerRun = config.maxPerRun ?? -1;
+        this.maxActive = config.maxActive ?? -1;
     }
 
     protected abstract run(): void;
@@ -47,7 +63,8 @@ export abstract class RunnerBase<K, V> {
      */
     protected takeBatch(): Map<K, PromiseEntry<V>[]> {
         const batch = new Map<K, PromiseEntry<V>[]>();
-        const limit = this.maxPerRun < 0 ? Infinity : this.maxPerRun;
+        const remaining = this.maxActive < 0 ? Infinity : this.maxActive - this.running.size;
+        const limit = Math.min(this.maxPerRun < 0 ? Infinity : this.maxPerRun, remaining);
         if (limit < 1) {
             return batch;
         }
@@ -109,7 +126,8 @@ export abstract class RunnerBase<K, V> {
      * An idle queue holds no timer at all, so it never keeps the process alive on its own.
      */
     protected ensureScheduled(): void {
-        if (this.ended || this.task !== undefined || !this.hasDispatchableWork()) {
+        if (this.ended || this.task !== undefined ||
+            (this.maxActive >= 0 && this.running.size >= this.maxActive) || !this.hasDispatchableWork()) {
             return;
         }
         // hold the run cadence: wait out whatever is left of the interval since the last run

@@ -1,4 +1,4 @@
-import { RunnerBase } from "./Base";
+import { QueueOptions, RunnerBase } from "./Base";
 
 export interface Runner<K, V> {
     (key: K): Promise<V>;
@@ -9,11 +9,11 @@ export class JobQueue<K, V> extends RunnerBase<K, V> {
     /**
      * Create a new queue
      * @param runner function(key):Promise to execute the job
-     * @param interval (ms) interval to run in
-     * @param maxPerRun maximum queue entries to run per interval (-1 for unlimited)
+     * @param options queue options, or the interval in milliseconds for numeric constructor calls
+     * @param legacyMaxPerRun maximum keys per interval when options is a number (negative for unlimited)
      */
-    constructor(private readonly runner: Runner<K, V>, interval: number = 1000, maxPerRun: number = -1) {
-        super(interval, maxPerRun);
+    constructor(private readonly runner: Runner<K, V>, options: number | QueueOptions = 1000, legacyMaxPerRun: number = -1) {
+        super(options, legacyMaxPerRun);
     }
 
     protected run(): void {
