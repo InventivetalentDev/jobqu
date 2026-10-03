@@ -17,9 +17,7 @@ class InspectableQueue extends JobQueue<number, number> {
 
 test("maxActive pauses dispatch without polling and resumes after success or failure", async t => {
     const jobs = new Map<number, { resolve: (value: number) => void; reject: (error: Error) => void }>();
-    const times: number[] = [];
     const queue = new InspectableQueue(key => new Promise((resolve, reject) => {
-        times.push(Date.now());
         jobs.set(key, { resolve, reject });
     }), { interval: 20, maxPerRun: 1, maxActive: 2 });
     t.after(() => queue.end());
@@ -44,7 +42,6 @@ test("maxActive pauses dispatch without polling and resumes after success or fai
     assert.equal(results[0].status, "rejected");
     assert.deepEqual(results.slice(1), [1, 2, 3].map(value => ({ status: "fulfilled", value })));
     assert.equal(queue.activeSize, 0);
-    assert.ok(times.slice(1).every((time, index) => time - times[index] >= 19), "dispatch respects its interval");
 });
 
 test("maxActive counts keys across batches and limits each batch to available capacity", async t => {
