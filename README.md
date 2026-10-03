@@ -104,8 +104,8 @@ notmykey 2: notmykey18288
 ## Options
 Both queues take the same constructor arguments:
 ```typescript
-new JobQueue<K, V>(runner, interval?, maxPerRun?)
-new MultiJobQueue<K, V>(runner, interval?, maxPerRun?)
+new JobQueue<K, V>(runner, interval?, maxPerRun?, options?)
+new MultiJobQueue<K, V>(runner, interval?, maxPerRun?, options?)
 ```
 
 | Argument | Default | Description |
@@ -113,11 +113,14 @@ new MultiJobQueue<K, V>(runner, interval?, maxPerRun?)
 | `runner` | *(required)* | `JobQueue`: `(key: K) => Promise<V>`<br>`MultiJobQueue`: `(keys: K[]) => Promise<Map<K, V>>` |
 | `interval` | `1000` | milliseconds between runs |
 | `maxPerRun` | `-1` | maximum keys handed to the runner per interval (`-1` for unlimited) |
+| `options.maxActive` | `-1` | maximum keys running at once, including all active batches; a positive integer or `-1` for unlimited |
 
 Runs are always at least `interval` apart, and everything added in the meantime is collected into
 the next one. A key that is still running is skipped, so the same key never runs twice at once —
 and a slow key never holds up the rest of the queue, even with `maxPerRun` set. Jobs added while
 their key is running are collected for the next run rather than resolved with the older value.
+At the active limit, dispatch pauses until a running key settles. Waiting for capacity does not
+create a polling timer, and resumed runs still respect `interval` and `maxPerRun`.
 
 ## Methods
 

@@ -1,4 +1,4 @@
-import { RunnerBase } from "./Base";
+import { QueueOptions, RunnerBase } from "./Base";
 
 export interface MultiRunner<K, V> {
     (keys: K[]): Promise<Map<K, V>>;
@@ -26,9 +26,10 @@ export class MultiJobQueue<K, V> extends RunnerBase<K, V> {
      * @param runner function(keys):Promise<Map> to execute the jobs
      * @param interval (ms) interval to run in
      * @param maxPerRun maximum queue entries to run per interval (-1 for unlimited)
+     * @param options optional active-key limit across all batches
      */
-    constructor(private readonly runner: MultiRunner<K, V>, interval: number = 1000, maxPerRun: number = -1) {
-        super(interval, maxPerRun);
+    constructor(private readonly runner: MultiRunner<K, V>, interval: number = 1000, maxPerRun: number = -1, options: QueueOptions = {}) {
+        super(interval, maxPerRun, options);
     }
 
     protected run(): void {
